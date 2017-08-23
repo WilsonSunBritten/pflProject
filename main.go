@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/tidwall/gjson"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 )
@@ -30,7 +31,7 @@ func testStuff() {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
 		bodyString := string(bodyBytes)
 		//fmt.Println(bodyString)
-		testValue := gjson.Get(bodyString, "results.data.0.id")
+		testValue := gjson.Get(bodyString, "results.data.#.name")
 		fmt.Println("am here: ", testValue)
 
 	}
