@@ -3,13 +3,53 @@ package main
 import (
 	"fmt"
 	"github.com/tidwall/gjson"
-	"html/template"
+	//"html/template"
+	"bytes"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
 func main() {
-	testStuff()
+	http.HandleFunc("/", defaultHandler)
+	http.HandleFunc("/showProductList", showProductListHandler)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+		return
+	}
+}
+
+func showProductListHandler(w http.ResponseWriter, r *http.Request) {
+	req, _ := http.NewRequest("GET", "https://testapi.pfl.com/products?apikey=136085", nil)
+	req.SetBasicAuth("miniproject", "Pr!nt123")
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	defer resp.Body.Close()
+	if resp.StatusCode == 200 {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		jsonString := string(bodyBytes)
+		productNameList := gjson.Get(jsonString, "results.data.#.name")
+		var bodyBuffer bytes.Buffer
+		bodyBuffer.WriteString("<select>\n")
+		for _, productName := range productNameList.Array() {
+			bodyBuffer.WriteString("<option>" + productName.String() + "</option>\n")
+		}
+		bodyBuffer.WriteString("</select>")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, bodyBuffer.String())
+		fmt.Fprintf(w, productNameList.String())
+	}
+}
+
+//Would be better to have a way to ty the product ids right to the selection
+// in case of matching names...
+//func getProductIdFromName(fullSelection string, resultName string) int {
+//	return gjson.Get(fullSelection, "results.data.#[name==\""+resultName+"\"].productId")
+//}
+
+func defaultHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Go web app test page 14423")
 }
 
 func testStuff() {
