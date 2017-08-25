@@ -8,15 +8,31 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func main() {
 	http.HandleFunc("/", defaultHandler)
 	http.HandleFunc("/showProductList", showProductListHandler)
+	http.HandleFunc("/fillInTemplatePage", fillInTemplatePageHandler)
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 		return
+	}
+}
+
+func fillInTemplatePageHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.Method)
+	if r.Method == "POST" {
+		r.ParseForm()
+		//body, _ := ioutil.ReadAll(r.Body)
+		fmt.Println(r.Form)
+		fmt.Println("scheme", r.URL.Scheme)
+		fmt.Println(r.Form["url_long"])
+		if len(Form) > 0 {
+			productId := Form["productChoice"]
+		}
 	}
 }
 
@@ -29,16 +45,21 @@ func showProductListHandler(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode == 200 {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
 		jsonString := string(bodyBytes)
-		productNameList := gjson.Get(jsonString, "results.data.#.name")
+		productList := gjson.Get(jsonString, "results.data")
 		var bodyBuffer bytes.Buffer
-		bodyBuffer.WriteString("<select>\n")
-		for _, productName := range productNameList.Array() {
-			bodyBuffer.WriteString("<option>" + productName.String() + "</option>\n")
-		}
-		bodyBuffer.WriteString("</select>")
+		bodyBuffer.WriteString("<form action=\"/fillInTemplatePage\" method=\"post\" id=\"productSelection\">\n <input type=\"submit\">\n")
+		bodyBuffer.WriteString("<select name=\"productChoice\">\n")
+
+		productList.ForEach(func(key, value gjson.Result) bool {
+			productName := value.Get("name")
+			productId := value.Get("productID")
+			bodyBuffer.WriteString("<option value=\"" + productId.String() + "\">" + productName.String() + "</option>\n")
+			return true
+		})
+
+		bodyBuffer.WriteString("</select></form>")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, bodyBuffer.String())
-		fmt.Fprintf(w, productNameList.String())
 	}
 }
 
