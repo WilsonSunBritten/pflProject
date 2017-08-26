@@ -1,0 +1,45 @@
+
+ReferenceNumber:
+<input type="text" name="partnerOrderReference" value="MyReferenceNumber"/>
+<br><br>
+Customer Information
+FirstName
+<input type="text" name="firstName" value="John" />
+<br>
+LastName
+<input type="text" name="lastName" value="Doe" />
+<br>
+CompanyName
+<input type="text" name="companyName" value="ACME" />
+<br>
+Address1
+<input type="text" name="address1" value="1 cme Way" />
+<br>
+Address2
+<input type="text" name="address2" value="" />
+<br>
+City
+<input type="text" name="city" value="Livingston" />
+<br>
+State
+<input type="text" name="state" value="MT" />
+<br>
+PostalCode
+<input type="text" name="postalCode" value="59047" />
+<br>
+CountryCode
+<input type="text" name="countryCode" value="US" />
+<br>
+Email
+<input type="text" name="email" value="jdoe@acme.com.invalid" />
+<br>
+Phone
+<input type="text" name="phone" value="1234567890" />
+
+<br><br>
+ItemFile
+<input type="text" name="itemFile" value="http://www.yourdomain.com/files/printReadyArtwork1.pdf" />
+
+<br><br>
+Quantity
+<input type="number" name="quantity" value="1" />
