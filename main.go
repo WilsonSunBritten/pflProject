@@ -10,11 +10,13 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 const apiKey string = "136085"
 const apiUserName string = "miniproject"
 const apiPassword string = "Pr!nt123"
+const pflAPIBaseLink string = "https://testapi.pfl.com/"
 
 func main() {
 	http.HandleFunc("/", defaultHandler)
@@ -37,7 +39,31 @@ func processOrderHandler(w http.ResponseWriter, r *http.Request) {
 		orderJson, err := json.Marshal(orderObject)
 		fmt.Println("orderObject json: " + string(orderJson))
 		fmt.Println("err: ", err)
+		response := postDataToPFLAPI("orders", string(orderJson))
+		fmt.Println("response: " + response)
+		fmt.Fprintf(w, gjson.Get(response, "results.data.orderNumber").String())
 	}
+}
+
+func postDataToPFLAPI(apiPath string, jsonData string) string {
+	pflRequest, err := http.NewRequest("POST", pflAPIBaseLink+apiPath+"?apikey="+apiKey, strings.NewReader(jsonData))
+	if err != nil {
+		//TODO handle error
+	}
+	pflRequest.SetBasicAuth(apiUserName, apiPassword)
+	pflRequest.Header.Set("Content-Type", "application/json")
+
+	pflResponse, err := http.DefaultClient.Do(pflRequest)
+	if err != nil {
+		fmt.Println("error here: " + err.Error())
+		return ""
+	}
+	defer pflResponse.Body.Close()
+	if pflResponse.StatusCode == 200 {
+		bodyBytes, _ := ioutil.ReadAll(pflResponse.Body)
+		return string(bodyBytes)
+	}
+	return ""
 }
 
 func getOrderObject(formData url.Values) CreateOrderObject {
