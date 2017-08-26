@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 )
 
 func main() {
@@ -30,10 +29,60 @@ func fillInTemplatePageHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(r.Form)
 		fmt.Println("scheme", r.URL.Scheme)
 		fmt.Println(r.Form["url_long"])
-		if len(Form) > 0 {
-			productId := Form["productChoice"]
+		if len(r.Form) > 0 {
+			productId := r.Form["productChoice"][0]
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprintf(w, buildTemplate(productId))
 		}
 	}
+}
+
+func buildTemplate(productId string) string {
+	var bodyBuffer bytes.Buffer
+	bodyBuffer.WriteString("Please fill out the fields below: \n\n")
+	bodyBuffer.WriteString("<form action=\"processOrder\" method=\"post\">\n")
+	data := getTemplateData(productId)
+	templateList := gjson.Get(data, "results.data.templateFields.fieldlist.field")
+
+	bodyBuffer.WriteString(data)
+
+	fmt.Println("templateList:" + templateList.String())
+	templateList.ForEach(func(key, value gjson.Result) bool {
+		fieldName := value.Get("fieldname").String()
+		required := value.Get("required").String() == "Y"
+		//visible := value.Get("visible").String() == "Y"
+		//fieldType := value.Get("type").String()
+		//defaultValue := value.Get("default").String()
+		//orgValue := value.Get("orgvalue").String()
+
+		bodyBuffer.WriteString("Field: " + fieldName)
+		bodyBuffer.WriteString("<input type=\"test\" name=\"" + fieldName + "\"")
+		if required {
+			bodyBuffer.WriteString(" required")
+		}
+		bodyBuffer.WriteString(">\n")
+
+		bodyBuffer.WriteString("\n\n")
+		return true
+	})
+	bodyBuffer.WriteString("<input type=\"submit\" value=\"Purchase\">")
+	return bodyBuffer.String()
+}
+
+func getTemplateData(productId string) string {
+	req, _ := http.NewRequest("GET", "https://testapi.pfl.com/products/"+productId+"?apikey=136085", nil)
+	req.SetBasicAuth("miniproject", "Pr!nt123")
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	defer resp.Body.Close()
+	fmt.Println("productIDHERe: " + productId)
+	if resp.StatusCode == 200 {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		body := string(bodyBytes)
+		fmt.Println("here: body is : " + body)
+		return body
+	}
+	return ""
 }
 
 func showProductListHandler(w http.ResponseWriter, r *http.Request) {
