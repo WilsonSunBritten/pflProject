@@ -38,12 +38,21 @@ func processOrderHandler(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		fmt.Println(r.Form)
 		orderObject := getOrderObject(r.Form)
-		orderJson, err := json.Marshal(orderObject)
-		fmt.Println("orderObject json: " + string(orderJson))
+		orderJsonBytes, err := json.Marshal(orderObject)
+		orderJson := string(orderJsonBytes)
+		fmt.Println("orderObject json: " + orderJson)
 		fmt.Println("err: ", err)
-		response := postDataToPFLAPI("orders", string(orderJson))
+		response := postDataToPFLAPI("orders", orderJson)
 		fmt.Println("response: " + response)
-		fmt.Fprintf(w, gjson.Get(response, "results.data.orderNumber").String())
+		if len(response) > 0 {
+			fmt.Fprintf(w, "Order Number:\n")
+			//TODO handle error result(if one exists...)
+			fmt.Fprintf(w, gjson.Get(response, "results.data.orderNumber").String())
+		} else {
+			prettyOrderJson, _ := json.MarshalIndent(orderObject, "", "	")
+			fmt.Fprintf(w, "Order failed to get a response. Json sent:\n"+string(prettyOrderJson))
+		}
+
 	}
 }
 
@@ -68,7 +77,9 @@ func postDataToPFLAPI(apiPath string, jsonData string) string {
 	return ""
 }
 
+// Returns an object ready for json marshalling for the pfl create order api
 func getOrderObject(formData url.Values) CreateOrderObject {
+	//TODO handle missing fields
 	orderCustomer := OrderCustomer{
 		FirstName:   formData["firstName"][0],
 		LastName:    formData["lastName"][0],
@@ -100,6 +111,7 @@ func getOrderObject(formData url.Values) CreateOrderObject {
 		Quantity:           prodQuantity,
 		TemplateData:       templateData,
 		ItemFile:           itemFile}
+	// Note: shipmentObject mostly copies customer info at this time, to avoid excessive fields on page
 	shipmentObject := Shipment{
 		ShipmentSequenceNumber: 1,
 		FirstName:              formData["firstName"][0],
@@ -134,15 +146,14 @@ func fillInTemplatePageHandler(w http.ResponseWriter, r *http.Request) {
 			productId := r.Form["productChoice"][0]
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			fmt.Fprintf(w, buildTemplate(productId))
-		}
+		} //TODO handle missing form data
 	}
 }
 
 func getStandardOrderFields() string {
-	byteRead, _ := ioutil.ReadFile("orderBasics.txt")
-	customerInfo := string(byteRead)
-
-	return customerInfo
+	basicCustomerInfoBytes, _ := ioutil.ReadFile("orderBasics.txt")
+	//TODO catch and handle error
+	return string(basicCustomerInfoBytes)
 }
 
 func buildTemplate(productId string) string {
@@ -244,20 +255,19 @@ func testStuffHandler(w http.ResponseWriter, r *http.Request) {
 
 	req, err := http.NewRequest("GET", "https://testapi.pfl.com/products/22784?apikey=136085", nil)
 	if err != nil {
-		// handle err
+		// TODO handle err
 	}
 	req.SetBasicAuth("miniproject", "Pr!nt123")
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		// handle err
+		// TODO handle err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 200 {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
 		bodyString := string(bodyBytes)
-		//fmt.Println(bodyString)
 		fmt.Println("am here: ", bodyString)
 
 	}
