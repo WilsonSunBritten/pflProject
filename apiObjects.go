@@ -18,8 +18,8 @@ type Item struct {
 	ItemSequenceNumber int            `json:"itemSequenceNumber"`
 	ProductID          int            `json:"productID"`
 	Quantity           int            `json:"quantity"`
-	TemplateData       []TemplateData `json:"templateData"`
-	ItemFile           string         `json:"itemFile"`
+	TemplateData       []TemplateData `json:"templateData,omitempty"`
+	ItemFile           string         `json:"itemFile,omitempty"`
 }
 
 type TemplateData struct {

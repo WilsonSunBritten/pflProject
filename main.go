@@ -17,12 +17,14 @@ const apiKey string = "136085"
 const apiUserName string = "miniproject"
 const apiPassword string = "Pr!nt123"
 const pflAPIBaseLink string = "https://testapi.pfl.com/"
+const templatePrefix string = "template."
 
 func main() {
 	http.HandleFunc("/", defaultHandler)
 	http.HandleFunc("/showProductList", showProductListHandler)
 	http.HandleFunc("/fillInTemplatePage", fillInTemplatePageHandler)
 	http.HandleFunc("/processOrder", processOrderHandler)
+	http.HandleFunc("/testStuff", testStuffHandler)
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
@@ -80,14 +82,24 @@ func getOrderObject(formData url.Values) CreateOrderObject {
 		Email:       formData["email"][0],
 		Phone:       formData["phone"][0]}
 	templateData := []TemplateData{}
-	//Todo ^ populate template data from form data(any field taht starts with __template... should const that...
+	templatePrefixLength := len(templatePrefix)
+	for key, value := range formData {
+		if strings.HasPrefix(key, templatePrefix) {
+			templateData = append(templateData, TemplateData{key[templatePrefixLength:], value[0]})
+		}
+	}
 	prodID, _ := strconv.Atoi(formData["productID"][0])
 	prodQuantity, _ := strconv.Atoi(formData["quantity"][0])
+	itemFile := ""
+	if value, found := formData["itemFile"]; found {
+		itemFile = value[0]
+	}
 	item := Item{
 		ItemSequenceNumber: 1,
 		ProductID:          prodID,
 		Quantity:           prodQuantity,
-		TemplateData:       templateData}
+		TemplateData:       templateData,
+		ItemFile:           itemFile}
 	shipmentObject := Shipment{
 		ShipmentSequenceNumber: 1,
 		FirstName:              formData["firstName"][0],
@@ -100,7 +112,7 @@ func getOrderObject(formData url.Values) CreateOrderObject {
 		PostalCode:             formData["postalCode"][0],
 		CountryCode:            formData["countryCode"][0],
 		Phone:                  formData["phone"][0],
-		ShippingMethod:         "FDXG"}
+		ShippingMethod:         formData["shippingMethod"][0]}
 	orderObject := CreateOrderObject{
 		PartnerOrderReference: formData["partnerOrderReference"][0],
 		OrderCustomer:         orderCustomer,
@@ -138,12 +150,40 @@ func buildTemplate(productId string) string {
 	bodyBuffer.WriteString("Please fill out the fields below: \n\n")
 	bodyBuffer.WriteString("<form action=\"processOrder\" method=\"post\">\n")
 	data := getDataFromPFLAPI("products/" + productId)
-	templateList := gjson.Get(data, "results.data.templateFields.fieldlist.field")
 
-	//bodyBuffer.WriteString(data)
 	bodyBuffer.WriteString(getStandardOrderFields())
+	bodyBuffer.WriteString(getShippingChoiceField(data))
+	bodyBuffer.WriteString(getTemplateFieldsForPage(data))
 
-	fmt.Println("templateList:" + templateList.String())
+	bodyBuffer.WriteString("<br><br><input type=\"submit\" value=\"Purchase\">")
+	bodyBuffer.WriteString("<input type=\"hidden\" name=\"productID\" value=\"" + productId + "\" />")
+	bodyBuffer.WriteString("</form>")
+	return bodyBuffer.String()
+}
+
+func getShippingChoiceField(jsonData string) string {
+	var bodyBuffer bytes.Buffer
+	shippingOptionList := gjson.Get(jsonData, "results.data.deliveredPrices")
+
+	bodyBuffer.WriteString("<br>Shipping Method:<select name=\"shippingMethod\">\n")
+
+	shippingOptionList.ForEach(func(key, value gjson.Result) bool {
+		deliveryMethodCode := value.Get("deliveryMethodCode")
+		bodyBuffer.WriteString("<option value=\"" + deliveryMethodCode.String() + "\">" + deliveryMethodCode.String() + "</option>\n")
+		return true
+	})
+	bodyBuffer.WriteString("\n</select>\n")
+	return bodyBuffer.String()
+}
+
+func getTemplateFieldsForPage(jsonData string) string {
+	var bodyBuffer bytes.Buffer
+	templateList := gjson.Get(jsonData, "results.data.templateFields.fieldlist.field")
+
+	if len(templateList.String()) <= 0 {
+		bodyBuffer.WriteString("<br>ItemField: <input type=\"text\" name=\"itemFile\" value=\"http://www.yourdomain.com/files/printReadyArtwork1.pdf\" />")
+	}
+	fmt.Println("\n\ntemplateList:" + templateList.String() + "\n\n\n")
 	templateList.ForEach(func(key, value gjson.Result) bool {
 		fieldName := value.Get("fieldname").String()
 		required := value.Get("required").String() == "Y"
@@ -151,20 +191,15 @@ func buildTemplate(productId string) string {
 		//fieldType := value.Get("type").String()
 		//defaultValue := value.Get("default").String()
 		//orgValue := value.Get("orgvalue").String()
-
+		//htmlFieldName := value.Get("htmlfieldname").String()
 		bodyBuffer.WriteString("<br>Field: " + fieldName)
-		bodyBuffer.WriteString("<input type=\"text\" name=\"templateField__" + fieldName + "\"")
+		bodyBuffer.WriteString("<input type=\"text\" name=\"" + templatePrefix + fieldName + "\"")
 		if required {
 			bodyBuffer.WriteString(" required")
 		}
 		bodyBuffer.WriteString(">\n")
-
-		bodyBuffer.WriteString("\n\n")
 		return true
 	})
-	bodyBuffer.WriteString("<br><br><input type=\"submit\" value=\"Purchase\">")
-	bodyBuffer.WriteString("<input type=\"hidden\" name=\"productID\" value=\"" + productId + "\" />")
-	bodyBuffer.WriteString("</form>")
 	return bodyBuffer.String()
 }
 
@@ -201,13 +236,13 @@ func showProductListHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Go web app test page 14423")
+	fmt.Fprintf(w, "Invalid page request")
 }
 
-func testStuff() {
+func testStuffHandler(w http.ResponseWriter, r *http.Request) {
 	// Generated by curl-to-Go: https://mholt.github.io/curl-to-go
 
-	req, err := http.NewRequest("GET", "https://testapi.pfl.com/products?apikey=136085", nil)
+	req, err := http.NewRequest("GET", "https://testapi.pfl.com/products/22784?apikey=136085", nil)
 	if err != nil {
 		// handle err
 	}
@@ -223,8 +258,7 @@ func testStuff() {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
 		bodyString := string(bodyBytes)
 		//fmt.Println(bodyString)
-		testValue := gjson.Get(bodyString, "results.data.#.name")
-		fmt.Println("am here: ", testValue)
+		fmt.Println("am here: ", bodyString)
 
 	}
 }

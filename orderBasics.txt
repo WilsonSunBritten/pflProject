@@ -36,9 +36,6 @@ Email
 Phone
 <input type="text" name="phone" value="1234567890" />
 
-<br><br>
-ItemFile
-<input type="text" name="itemFile" value="http://www.yourdomain.com/files/printReadyArtwork1.pdf" />
 
 <br><br>
 Quantity
