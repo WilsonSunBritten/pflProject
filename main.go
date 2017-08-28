@@ -141,10 +141,11 @@ func getStandardOrderFields() string {
 
 func buildTemplate(productId string) string {
 	var bodyBuffer bytes.Buffer
-	bodyBuffer.WriteString("Please fill out the fields below: \n\n")
 	bodyBuffer.WriteString("<form action=\"processOrder\" method=\"post\">\n")
 	data := getDataFromPFLAPI("products/" + productId)
 
+	bodyBuffer.WriteString("Product Name: " + gjson.Get(data, "results.data.name").String() + "<br>" + gjson.Get(data, "results.data.description").String() + "<br>")
+	bodyBuffer.WriteString("Please fill out the fields below:\n<br>\n")
 	bodyBuffer.WriteString(getStandardOrderFields())
 	bodyBuffer.WriteString(getShippingChoiceField(data))
 	bodyBuffer.WriteString(getQuantityChoiceField(data))
@@ -158,23 +159,23 @@ func buildTemplate(productId string) string {
 
 func getQuantityChoiceField(jsonData string) string {
 	var bodyBuffer bytes.Buffer
-	defaultQuantity := gjson.Get(jsonData, "results.data.quantityDefault")
-	minimumQuantity := gjson.Get(jsonData, "results.data.quantityMinimum")
-	maximumQuantity := gjson.Get(jsonData, "results.data.quantityMaximum")
-	quantityIncrement := gjson.Get(jsonData, "results.data.quantityIncrement")
+	defaultQuantity := gjson.Get(jsonData, "results.data.quantityDefault").String()
+	minimumQuantity := gjson.Get(jsonData, "results.data.quantityMinimum").String()
+	maximumQuantity := gjson.Get(jsonData, "results.data.quantityMaximum").String()
+	quantityIncrement := gjson.Get(jsonData, "results.data.quantityIncrement").String()
 
 	bodyBuffer.WriteString("<br>Quantity: <input type=\"number\" name=\"quantity\"")
-	if len(minimumQuantity.String()) > 0 {
-		bodyBuffer.WriteString(" min=\"" + minimumQuantity.String() + "\"")
+	if len(minimumQuantity) > 0 {
+		bodyBuffer.WriteString(" min=\"" + minimumQuantity + "\"")
 	}
-	if len(maximumQuantity.String()) > 0 {
-		bodyBuffer.WriteString(" max=\"" + maximumQuantity.String() + "\"")
+	if len(maximumQuantity) > 0 {
+		bodyBuffer.WriteString(" max=\"" + maximumQuantity + "\"")
 	}
-	if len(defaultQuantity.String()) > 0 {
-		bodyBuffer.WriteString(" value=\"" + defaultQuantity.String() + "\"")
+	if len(defaultQuantity) > 0 {
+		bodyBuffer.WriteString(" value=\"" + defaultQuantity + "\"")
 	}
-	if len(quantityIncrement.String()) > 0 {
-		bodyBuffer.WriteString(" step=\"" + quantityIncrement.String() + "\"")
+	if len(quantityIncrement) > 0 {
+		bodyBuffer.WriteString(" step=\"" + quantityIncrement + "\"")
 	}
 	bodyBuffer.WriteString(">")
 	return bodyBuffer.String()
@@ -248,11 +249,12 @@ func pflAPIRequest(requestType string, requestLocation string, jsonData *strings
 	return ""
 }
 
-func showProductListHandler(w http.ResponseWriter, r *http.Request) {
+func showProductListHandler(httpWriter http.ResponseWriter, httpRequest *http.Request) {
 	jsonString := getDataFromPFLAPI("products")
 	productList := gjson.Get(jsonString, "results.data")
 	var bodyBuffer bytes.Buffer
-	bodyBuffer.WriteString("<form action=\"/fillInTemplatePage\" method=\"post\" id=\"productSelection\">\n <input type=\"submit\">\n")
+	bodyBuffer.WriteString("Please Select a Product:\n<br>")
+	bodyBuffer.WriteString("<form action=\"/fillInTemplatePage\" method=\"post\" id=\"productSelection\">\n")
 	bodyBuffer.WriteString("<select name=\"productChoice\">\n")
 
 	productList.ForEach(func(key, value gjson.Result) bool {
@@ -262,9 +264,10 @@ func showProductListHandler(w http.ResponseWriter, r *http.Request) {
 		return true
 	})
 
-	bodyBuffer.WriteString("</select></form>")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, bodyBuffer.String())
+	bodyBuffer.WriteString("</select>")
+	bodyBuffer.WriteString("<br>\n<input type=\"submit\" value=\"Select Product\">\n</form>")
+	httpWriter.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(httpWriter, bodyBuffer.String())
 }
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
