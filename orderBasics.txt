@@ -38,5 +38,3 @@ Phone
 
 
 <br><br>
-Quantity
-<input type="number" name="quantity" value="1" />
